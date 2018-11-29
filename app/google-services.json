@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "440725310181",
+    "firebase_url": "https://mapsassignment-2865c.firebaseio.com",
+    "project_id": "mapsassignment-2865c",
+    "storage_bucket": "mapsassignment-2865c.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:440725310181:android:28c129bb67d6a21a",
+        "android_client_info": {
+          "package_name": "edu.psu.esterby.assignment_maps_jim_esterby"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "440725310181-5jc3a8v5rr223ppnjc10ckoo0cje8m8r.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDqZhzL3ubqPCfHCUr0kbRXJ_S6eQ8leQ0"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
