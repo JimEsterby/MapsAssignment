@@ -3,6 +3,7 @@ package edu.psu.esterby.assignment_maps_jim_esterby.activity;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -16,6 +17,7 @@ import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -25,6 +27,7 @@ import com.google.firebase.database.ValueEventListener;
 import java.util.ArrayList;
 
 import edu.psu.esterby.assignment_maps_jim_esterby.R;
+import edu.psu.esterby.assignment_maps_jim_esterby.model.DataItem;
 import edu.psu.esterby.assignment_maps_jim_esterby.model.MapLocation;
 
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
@@ -37,6 +40,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private static final String LOCATION = "Location";
 
     private final String LOG_MAP = "GOOGLE_MAPS";
+
+    private GoogleMap AppGoogleMap;
 
     // Google Maps
     private LatLng currentLatLng;
@@ -94,11 +99,16 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     // Step 1 - Set up initial configuration for the map.
     @Override
     public void onMapReady(GoogleMap googleMap) {
+        AppGoogleMap = googleMap;
 
         Intent intent = getIntent();
-        Double latitude = intent.getDoubleExtra("LATITUDE", Double.NaN);
-        Double longitude = intent.getDoubleExtra("LONGITUDE", Double.NaN);
+ //       Double latitude = intent.getDoubleExtra("LATITUDE", Double.NaN);
+//        Double longitude = intent.getDoubleExtra("LONGITUDE", Double.NaN);
         String location = intent.getStringExtra("LOCATION");
+
+        // Let's try Dodge City, Kansas...
+        Double latitude = intent.getDoubleExtra("LATITUDE", 37.765469);
+        Double longitude = intent.getDoubleExtra("LONGITUDE", -100.015167);
 
         // Set initial positioning (Latitude / longitude)
         currentLatLng = new LatLng(latitude, longitude);
@@ -112,6 +122,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mapCameraConfiguration(googleMap);
         useMapClickListener(googleMap);
         useMarkerClickListener(googleMap);
+
+        // Add Firebase markers
+       loadData();
     }
 
     /** Step 2 - Set a few properties for the map when it is ready to be displayed.
@@ -199,22 +212,43 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     public void createMarkersFromFirebase(GoogleMap googleMap){
-        // FIXME Call loadData() to gather all MapLocation instances from firebase.
-        // FIXME Call createCustomMapMarkers for each MapLocation in the Collection
     }
 
-    private ArrayList<MapLocation> loadData(){
+    private void loadData(){
 
-        // FIXME Method should create/return a new Collection with all MapLocation available on firebase.
+        FirebaseDatabase db = FirebaseDatabase.getInstance();
+        DatabaseReference ref = db.getReference();
 
-        ArrayList<MapLocation> mapLocations = new ArrayList<>();
+        ref.addChildEventListener(new ChildEventListener() {
+            @Override
+            public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+                DataItem item = dataSnapshot.getValue(DataItem.class);
 
-        mapLocations.add(new MapLocation("New York","City never sleeps", String.valueOf(39.953348), String.valueOf(-75.163353)));
-        mapLocations.add(new MapLocation("Paris","City of lights", String.valueOf(48.856788), String.valueOf(2.351077)));
-        mapLocations.add(new MapLocation("Las Vegas","City of dreams", String.valueOf(36.167114), String.valueOf(-115.149334)));
-        mapLocations.add(new MapLocation("Tokyo","City of technology", String.valueOf(35.689506), String.valueOf(139.691700)));
+                // Create marker for item on the map
+                createCustomMapMarkers(AppGoogleMap,
+                        new LatLng(item.getLatitude(), item.getLongitude()),
+                        item.getLocation(), "");
+            }
 
-        return mapLocations;
+            @Override
+            public void onChildChanged(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+
+            }
+
+            @Override
+            public void onChildRemoved(@NonNull DataSnapshot dataSnapshot) {
+
+            }
+
+            @Override
+            public void onChildMoved(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+
+            }
+        });
     }
-
 }

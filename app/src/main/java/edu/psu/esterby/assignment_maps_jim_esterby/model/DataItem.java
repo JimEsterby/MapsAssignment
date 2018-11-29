@@ -4,37 +4,39 @@ import java.io.Serializable;
 
 public class DataItem implements Serializable {
 
-    private String location;
-    private Double latitude;
-    private Double longitude;
+    private String Location;
+    private Double Latitude;
+    private Double Longitude;
 
-    DataItem(String name, Double lat, Double lon) {
-        location = name;
-        latitude = lat;
-        longitude = lon;
+    public DataItem() {}
+
+    public DataItem(Double lat, String name, Double lon) {
+        this.Location = name;
+        this.Latitude = lat;
+        this.Longitude = lon;
     }
 
     public String getLocation() {
-        return location;
+        return Location;
     }
 
     public void setLocation(String location) {
-        this.location = location;
+        this.Location = location;
     }
 
     public Double getLatitude() {
-        return latitude;
+        return Latitude;
     }
 
     public void setLatitude(Double latitude) {
-        this.latitude = latitude;
+        this.Latitude = latitude;
     }
 
     public Double getLongitude() {
-        return longitude;
+        return Longitude;
     }
 
     public void setLongitude(Double longitude) {
-        this.longitude = longitude;
+        this.Longitude = longitude;
     }
 }
