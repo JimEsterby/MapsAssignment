@@ -11,4 +11,12 @@
     <string name="btn_login">Login</string>
     <string name="text_view_or">OR</string>
     <string name="btn_create_user">Sign Up</string>
+
+    <!-- for Part 2 of the assignment -->
+    <string name="navigate">Navigate</string>
+    <string name="latitude">Latitude</string>
+    <string name="longitude">Longitude</string>
+    <string name="description">Description</string>
+    <string name="location">Location</string>
+    <string name="go">Go!</string>
 </resources>

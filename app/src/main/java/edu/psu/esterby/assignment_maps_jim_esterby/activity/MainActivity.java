@@ -17,6 +17,7 @@ import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.PointOfInterest;
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -27,6 +28,7 @@ import com.google.firebase.database.ValueEventListener;
 import java.util.ArrayList;
 
 import edu.psu.esterby.assignment_maps_jim_esterby.R;
+import edu.psu.esterby.assignment_maps_jim_esterby.broadcast.MapBroadcastReceiver;
 import edu.psu.esterby.assignment_maps_jim_esterby.model.DataItem;
 import edu.psu.esterby.assignment_maps_jim_esterby.model.MapLocation;
 
@@ -41,6 +43,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private final String LOG_MAP = "GOOGLE_MAPS";
 
+    private DataItem passed_item;  // used to hold input data
+
     private GoogleMap AppGoogleMap;
 
     // Google Maps
@@ -50,8 +54,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     // TODO: Broadcast receivers
     // Broadcast Receiver
-/*    private IntentFilter intentFilter = null;
-    private BroadcastReceiverMap broadcastReceiverMap = null;*/
+    private IntentFilter intentFilter = null;
+    private MapBroadcastReceiver broadcastReceiver = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,14 +65,29 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.google_map);
         mapFragment.getMapAsync(this);
 
-        // Recover the data from the other activity passed through the intent.
-        String user_email = getIntent().getStringExtra("USER_EMAIL");
-        String provider = getIntent().getStringExtra("PROVIDER_ID");
+        Intent intent = getIntent();
 
-        Log.d("PARAMS", user_email);
-        Log.d("PARAMS", provider);
+        passed_item = (DataItem) intent.getSerializableExtra("MAP_LOCATION");
 
         firebaseLoadData();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        // set up broadcast receiver
+
+        // long string argument to this function is in AndroidManifest.xml
+        intentFilter = new IntentFilter("edu.psu.esterby.assignment_maps_jim_esterby.action.NEW_MAP_LOCATION_BROADCAST");
+        broadcastReceiver = new MapBroadcastReceiver();
+        registerReceiver(broadcastReceiver, intentFilter);
+    }
+
+    @Override
+    protected void onStop() {
+        unregisterReceiver(broadcastReceiver);
+        super.onStop();
     }
 
     private void firebaseLoadData() {  // Test Firebase connection
@@ -82,7 +101,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 for (DataSnapshot item : dataSnapshot.getChildren()) {
                     // each item should have 3 fields: Location, Latitude, and Longitude
                     // TODO: code to deal with malformed database items
-                    Log.d(LOCATION, (String)item.child(LOCATION).getValue());
+                    Log.d(LOCATION, (String) item.child(LOCATION).getValue());
                     Log.d(LATITUDE, "Value: " + item.child(LATITUDE).getValue());
                     Log.d(LONGITUDE, "Value: " + item.child(LONGITUDE).getValue());
                 }
@@ -101,14 +120,15 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     public void onMapReady(GoogleMap googleMap) {
         AppGoogleMap = googleMap;
 
-        Intent intent = getIntent();
- //       Double latitude = intent.getDoubleExtra("LATITUDE", Double.NaN);
-//        Double longitude = intent.getDoubleExtra("LONGITUDE", Double.NaN);
-        String location = intent.getStringExtra("LOCATION");
+        //       Intent intent = getIntent();
+        //      String location = intent.getStringExtra("LOCATION");
+        String location = passed_item.getLocation();
+        Double latitude = passed_item.getLatitude();
+        Double longitude = passed_item.getLongitude();
 
         // Let's try Dodge City, Kansas...
-        Double latitude = intent.getDoubleExtra("LATITUDE", 37.765469);
-        Double longitude = intent.getDoubleExtra("LONGITUDE", -100.015167);
+        //Double latitude = intent.getDoubleExtra("LATITUDE", 37.765469);
+        //Double longitude = intent.getDoubleExtra("LONGITUDE", -100.015167);
 
         // Set initial positioning (Latitude / longitude)
         currentLatLng = new LatLng(latitude, longitude);
@@ -118,22 +138,30 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .title(location)
         );
 
+        createCustomMapMarkers(googleMap,
+                new LatLng(passed_item.getLatitude(), passed_item.getLongitude()),
+                passed_item.getLocation(),
+                "");
+
         // Set the camera focus on the current LatLtn object, and other map properties.
         mapCameraConfiguration(googleMap);
         useMapClickListener(googleMap);
         useMarkerClickListener(googleMap);
+        useOnMarkerDragListener(googleMap);
+        usePoiClickListener(googleMap);
 
         // Add Firebase markers
-       loadData();
+        loadData();
     }
 
-    /** Step 2 - Set a few properties for the map when it is ready to be displayed.
-     Zoom position varies from 2 to 21.
-     Camera position implements a builder pattern, which allows to customize the view.
-     Bearing - screen rotation ( the angle needs to be defined ).
-     Tilt - screen inclination ( the angle needs to be defined ).
+    /**
+     * Step 2 - Set a few properties for the map when it is ready to be displayed.
+     * Zoom position varies from 2 to 21.
+     * Camera position implements a builder pattern, which allows to customize the view.
+     * Bearing - screen rotation ( the angle needs to be defined ).
+     * Tilt - screen inclination ( the angle needs to be defined ).
      **/
-    private void mapCameraConfiguration(GoogleMap googleMap){
+    private void mapCameraConfiguration(GoogleMap googleMap) {
 
         CameraPosition cameraPosition = new CameraPosition.Builder()
                 .target(currentLatLng)
@@ -154,11 +182,15 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onCancel() {
                 Log.i(LOG_MAP, "googleMap.animateCamera:onCancel is active");
-            }});
+            }
+        });
     }
-    /** Step 3 - Reusable code
-     This method is called every time the use wants to place a new marker on the map. **/
-    private void createCustomMapMarkers(GoogleMap googleMap, LatLng latlng, String title, String snippet){
+
+    /**
+     * Step 3 - Reusable code
+     * This method is called every time the use wants to place a new marker on the map.
+     **/
+    private void createCustomMapMarkers(GoogleMap googleMap, LatLng latlng, String title, String snippet) {
 
         MarkerOptions markerOptions = new MarkerOptions();
         markerOptions.position(latlng) // coordinates
@@ -170,7 +202,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     // Step 4 - Define a new marker based on a Map click (uses onMapClickListener)
-    private void useMapClickListener(final GoogleMap googleMap){
+    private void useMapClickListener(final GoogleMap googleMap) {
 
         googleMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
 
@@ -178,7 +210,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             public void onMapClick(LatLng latltn) {
                 Log.i(LOG_MAP, "setOnMapClickListener");
 
-                if(currentMapMarker != null){
+                if (currentMapMarker != null) {
                     // Remove current marker from the map.
                     currentMapMarker.remove();
                 }
@@ -188,14 +220,14 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                         new LatLng(latltn.latitude, latltn.longitude),
                         "New Marker",
                         "Listener onMapClick - new position"
-                                +"lat: "+latltn.latitude
-                                +" lng: "+ latltn.longitude);
+                                + "lat: " + latltn.latitude
+                                + " lng: " + latltn.longitude);
             }
         });
     }
 
     // Step 5 - Use OnMarkerClickListener for displaying information about the MapLocation
-    private void useMarkerClickListener(GoogleMap googleMap){
+    private void useMarkerClickListener(GoogleMap googleMap) {
         googleMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
 
             // If FALSE, when the map should have the standard behavior (based on the android framework)
@@ -211,6 +243,41 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
     }
 
+    // implementations of extra listeners
+    private void usePoiClickListener(GoogleMap googleMap) {
+        googleMap.setOnPoiClickListener(new GoogleMap.OnPoiClickListener() {
+            @Override
+            public void onPoiClick(PointOfInterest poi) {
+                Log.i(LOG_MAP, poi.placeId);
+            }
+        });
+    }
+
+    private void useOnMarkerDragListener(GoogleMap googleMap) {
+        googleMap.setOnMarkerDragListener(new GoogleMap.OnMarkerDragListener() {
+            @Override
+            public void onMarkerDrag(Marker m) {
+
+            }
+
+            @Override
+            public void onMarkerDragEnd(Marker m) {
+                Log.i(LOG_MAP, "onMarkerDragListener");
+
+            }
+
+            @Override
+            public void onMarkerDragStart(Marker m) {
+
+            }
+        });
+    }
+
+    private void triggerBroadcastMessageFromFirebase(DataItem item) {
+        Intent send = new Intent(this, MapBroadcastReceiver.class);
+        send.putExtra("MAP_LOCATION", item);
+    }
+
     public void createMarkersFromFirebase(GoogleMap googleMap){
     }
 
@@ -223,6 +290,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
                 DataItem item = dataSnapshot.getValue(DataItem.class);
+
+                // Send notification
+                triggerBroadcastMessageFromFirebase(item);
 
                 // Create marker for item on the map
                 createCustomMapMarkers(AppGoogleMap,
